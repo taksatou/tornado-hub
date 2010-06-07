@@ -1,0 +1,7 @@
+POST / HTTP/1.0
+Host: localhost
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 201
+
+hub.callback%3Dhttp%3A%2F%2Fsui2.is-a-geek.net%2F~blog%2Ftakayuki%2Fcallback.php%26hub.mode%3Dsubscribe%26hub.topic%3Dhttp%3A%2F%2Fsui2.is-a-geek.net%2F~blog%2Ftakayuki%2Findex.rdf%26hub.verify%3Dasync
+
