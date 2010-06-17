@@ -1,0 +1,16 @@
+--general
+* use cassandra or redis for storage
+* 
+   
+--sub
+* Automatic Subscription
+* https
+* async retry
+* lease_second
+* secret
+
+--pub
+* X-Hub-On-Behalf-Of
+* authenticated distribution
+* best practice headers(If-None-Match, If-Modified-Since)
+
