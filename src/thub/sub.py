@@ -10,15 +10,9 @@ SubscriberOptional = ['hub.lease_seconds', 'hub.secret', 'hub.verify_token']
 VerifyRequired = ['hub.mode', 'hub.topic', 'hub.challenge']
 VerifyOptional = ['hub.lease_seconds', 'hub.verify_token']
 
-def validSubRequest(**args):
+def validSubRequest(**kwargs):
     for k in SubscriberRequired:
-        if not k in args:
-            return False
-    return True
-
-def validUnsubRequest(*args):
-    for k in SubscriberRequired:
-        if not k in args[i]:
+        if not k in kwargs:
             return False
     return True
 
@@ -40,12 +34,38 @@ class Subscribe:
 
     def diff_state(self):
         '''whether the operation will change the state'''
-        return True
+        before = self.storage.get(self.args['hub.callback'])
+        if not before:
+            if self.args['hub.mode'] == 'subscribe':
+                return True
+            elif self.args['hub.mode'] == 'unsubscribe':
+                return False
+            else:
+                raise
+            
+        if not isinstance(before, dict):
+            return True
+        for i in self.args:
+            if not i in before:
+                return True
+            if before[i] != self.args[i]:
+                return True
+        logging.warn('not modified')
+        return False
 
     def commit_state(self):
         '''commit the change'''
         logging.info('new subscriber>> callback: %s, topic: %s', self.args['hub.callback'], self.args['hub.topic'])
-        pass
+        if self.args['hub.mode'] == 'subscribe':
+            logging.info('subscribe')
+            return self.storage.set(key=self.args['hub.callback'], val=self.args)
+        elif self.args['hub.mode'] == 'unsubscribe':
+            logging.warn('unsubscribe')
+            return self.storage.delete(key=self.args['hub.callback'])
+        else:
+            logging.error('unknown')
+            return False
+
 
     def get_verification_info(self):
         h = hashlib.md5()
@@ -66,6 +86,7 @@ class Subscribe:
         
     
     def do(self):
+        
 
 #             if self.sub.verify == 'sync':
 #                 http = tornado.httpclient.AsyncHTTPClient()

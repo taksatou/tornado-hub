@@ -8,10 +8,11 @@ import tornado.ioloop
 import tornado.options
 import tornado.web
 import urllib
+import time
 
-import myhub.sub
-import myhub.pub
-from myhub.storage import Storage
+import thub.sub
+import thub.pub
+from thub.storage import Storage
 from tornado.options import define, options
 
 define("port", default=8888, help="run on the given port", type=int)
@@ -43,22 +44,21 @@ class MainHandler(tornado.web.RequestHandler):
         else:
             raise NotImplemented, 'asyc subscription retry is not implemented'
 
-    def on_publish(self, response):
-#         if 'Location' in response.headers:
-#             headers = self.pub.content_fetch_headers()
-#             http = tornado.httpclient.AsyncHTTPClient()
-#             http.fetch(request=response.headers['Location'], callback=self.async_callback(self.on_publish), **headers)
-#             return
-        
-        subscribers = self.pub.get_subscribers()
-        contens = self.pub.new_topic(response.body)
-        http = tornado.httpclient.AsyncHTTPClient()
-        for i in subscribers:
-            http.fetch(request=i, callback=self.async_callback(self.on_distribution), **contens)
+    def on_publish(self, response):        
+        contents = self.pub.new_contents(response.body)
+        headers = self.pub.content_distribute_headers()
+
+        for i in self.pub.subscribers:
+            http = tornado.httpclient.AsyncHTTPClient()
+            kwargs = {'headers': headers,
+                      'method': 'POST',
+                      'body': contents}
+            http.fetch(request=i, callback=self.async_callback(self.on_distribution), **kwargs)
+
 
     def on_distribution(self, response):
         '''retry is not implemented'''
-        pass        
+        logging.info('successed distribution')
         
     
     @tornado.web.asynchronous
@@ -74,12 +74,7 @@ class MainHandler(tornado.web.RequestHandler):
             mode = body['hub.mode']
             
         if mode == 'subscribe' or mode == 'unsubscribe':
-#            self.sub = None
-#             try:
-#                 self.sub = myhub.sub.Subscribe(storage=self.application.storage, **body)
-#             except:
-#                 tornado.web.HTTPError(400)
-            self.sub = myhub.sub.Subscribe(storage=self.application.storage, **body)
+            self.sub = thub.sub.Subscribe(storage=self.application.storage, **body)
                 
             if not self.sub.diff_state():
                 self.set_status(204)
@@ -88,7 +83,6 @@ class MainHandler(tornado.web.RequestHandler):
             else:
                 (verify_mode, callback, kwargs) = self.sub.get_verification_info()
                 if verify_mode == 'async':
-                    self.sub.commit_state()
                     self.set_status(202)
                     self.finish()
                     http = tornado.httpclient.AsyncHTTPClient()
@@ -107,13 +101,17 @@ class MainHandler(tornado.web.RequestHandler):
                         raise tornado.web.HTTPError(400)
                 
         elif mode == 'publish':
-            self.pub = myhub.pub.Publish(storate=self.application.storage, **body)
+            self.pub = thub.pub.Publish(storage=self.application.storage,
+                                        hub='http://sui2.is-a-geek.net:8888', **body)
             self.set_status(204)
             self.finish()
              
             headers = self.pub.content_fetch_headers()
             http = tornado.httpclient.AsyncHTTPClient()
-            http.fetch(request=self.pub.topic, callback=self.async_callback(self.on_publish), **headers)
+            http.fetch(request=self.pub.topic,
+                       callback=self.async_callback(self.on_publish), headers=headers)
+
+            return
         else:
             raise tornado.web.HTTPError(400)
 
